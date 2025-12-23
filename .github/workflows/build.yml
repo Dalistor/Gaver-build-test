@@ -1,0 +1,88 @@
+name: Build API
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os }} - ${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          # Windows builds
+          - os: windows-latest
+            arch: amd64
+            goos: windows
+            goarch: amd64
+            extension: .exe
+          - os: windows-latest
+            arch: 386
+            goos: windows
+            goarch: 386
+            extension: .exe
+          
+          # Linux builds
+          - os: ubuntu-latest
+            arch: amd64
+            goos: linux
+            goarch: amd64
+            extension: ""
+          - os: ubuntu-latest
+            arch: 386
+            goos: linux
+            goarch: 386
+            extension: ""
+          - os: ubuntu-latest
+            arch: arm64
+            goos: linux
+            goarch: arm64
+            extension: ""
+          
+          # macOS builds
+          - os: macos-latest
+            arch: amd64
+            goos: darwin
+            goarch: amd64
+            extension: ""
+          - os: macos-latest
+            arch: arm64
+            goos: darwin
+            goarch: arm64
+            extension: ""
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.3'
+
+      - name: Build
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          # Tenta diferentes caminhos possíveis para o main.go
+          if [ -f "./cmd/test/main.go" ]; then
+            go build -o test-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.extension }} ./cmd/test/main.go
+          elif [ -f "./cmd/api/main.go" ]; then
+            go build -o test-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.extension }} ./cmd/api/main.go
+          elif [ -f "./main.go" ]; then
+            go build -o test-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.extension }} ./main.go
+          else
+            echo "Erro: arquivo main.go não encontrado"
+            exit 1
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: test-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.extension }}
+          retention-days: 30
+
